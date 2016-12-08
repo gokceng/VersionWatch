@@ -1,0 +1,63 @@
+project.ext {
+    def nexusUrl = "http://nexus-build.int.mttnow.com"
+    mavenRepoUrl = "$nexusUrl/content/groups/mtt/"
+    mavenRepoReleaseUrl = "$nexusUrl/content/repositories/releases"
+    mavenRepoSnapshotUrl = "$nexusUrl/content/repositories/snapshots"
+}
+
+buildscript {
+    ext {
+        springBootVersion = '1.4.2.RELEASE'
+    }
+
+    repositories {
+        maven { url "http://nexus-build.int.mttnow.com/content/groups/mtt/" }
+        maven { url 'http://repo1.maven.org' }
+    }
+
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+
+jar {
+    baseName = 'demo'
+    version = '0.0.1-SNAPSHOT'
+}
+
+apply plugin: "idea"
+
+idea {
+    project {
+        jdkName = '1.7'
+        languageLevel = '1.7'
+    }
+
+    module {
+        downloadJavadoc = true
+        downloadSources = true
+    }
+}
+
+repositories {
+    maven { url project.mavenRepoUrl }
+    maven { url 'http://repo.gradle.org/gradle/libs-releases' }
+}
+
+
+dependencies {
+    compile 'com.google.api-client:google-api-client:1.22.0'
+    compile 'com.google.oauth-client:google-oauth-client-jetty:1.22.0'
+    compile 'com.google.apis:google-api-services-sheets:v4-rev38-1.22.0'
+
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile('org.springframework.boot:spring-boot-starter-jersey')
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+
+    compile "org.gradle:gradle-tooling-api:${gradle.gradleVersion}"
+    compile 'org.apache.poi:poi:3.15'
+    compile 'org.apache.poi:poi-ooxml:3.15'
+}
