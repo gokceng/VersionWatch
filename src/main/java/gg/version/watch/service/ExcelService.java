@@ -59,7 +59,7 @@ public class ExcelService {
 
     try {
       workbook.write(outputStream);
-      LOGGER.info("Dependencies are written to the stream succesfully.");
+      LOGGER.info("{} dependencies are written to the stream succesfully.", sortedDependencySet.size());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

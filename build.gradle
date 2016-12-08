@@ -60,4 +60,5 @@ dependencies {
     compile "org.gradle:gradle-tooling-api:${gradle.gradleVersion}"
     compile 'org.apache.poi:poi:3.15'
     compile 'org.apache.poi:poi-ooxml:3.15'
+    compile("org.springframework.boot:spring-boot-starter-data-mongodb")
 }

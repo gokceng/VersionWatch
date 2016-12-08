@@ -141,7 +141,7 @@ public class SheetService {
       String groupId = (String) row.get(0);
       String artifactId = (String) row.get(1);
       String version = (String) row.get(2);
-      Dependency dependency = new Dependency(groupId, artifactId, version);
+      Dependency dependency = new Dependency(groupId, artifactId);
       LOGGER.info(dependency.toString());
       dependencySet.add(dependency);
     }

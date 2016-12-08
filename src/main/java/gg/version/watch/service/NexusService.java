@@ -1,9 +1,7 @@
 package gg.version.watch.service;
 
 import gg.version.watch.model.Dependency;
-import gg.version.watch.model.VersioneState;
 import gg.version.watch.model.nexus.Metadata;
-import gg.version.watch.model.nexus.Versioning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,12 +11,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Gokcen Guner
@@ -30,6 +29,7 @@ public class NexusService {
 
   @Value("#{'${gg.version.watch.nexus.urls}'.split(',')}")
   private List<String> nexusUrls;
+
   private RestTemplate restTemplate;
 
   public NexusService() {
@@ -40,81 +40,55 @@ public class NexusService {
         .build();
   }
 
-  public Set<Dependency> updateDependencies(Set<Dependency> dependencySet, VersioneState versioneState) {
-    if (VersioneState.ALL.equals(versioneState)) {
-      return getAll(dependencySet);
-    }
-    return keepByFlag(dependencySet, versioneState);
+  public Dependency retrieveDependency(String groupId, String artifactId) {
+    String path = constructPath(groupId, artifactId);
+    return getLatestDependency(path);
   }
 
-  private Set<Dependency> getAll(Set<Dependency> dependencySet) {
-    for (Dependency dependency : dependencySet) {
-      updateFromNexus(dependency);
-    }
-    return dependencySet;
-  }
-
-  private Set<Dependency> keepByFlag(Set<Dependency> dependencySet, VersioneState versioneState) {
-    Iterator<Dependency> iterator = dependencySet.iterator();
-    while (iterator.hasNext()) {
-      Dependency next = iterator.next();
-      updateFromNexus(next);
-      VersioneState depVersioneState = next.getVersioneState();
-      if (depVersioneState != versioneState) iterator.remove();
-    }
-    return dependencySet;
-  }
-
-  private void updateFromNexus(Dependency dependency) {
-    Metadata metadata = getMetadata(dependency);
-    if (metadata == null) {
-      return;
-    }
-    Versioning versioning = metadata.getVersioning();
-    String latest = versioning.getLatest();
-    if (StringUtils.hasText(latest)) {
-      dependency.setLatestVersion(latest);
-    } else {
-      dependency.setLatestVersion(metadata.getVersion());
-    }
-
-    String release = versioning.getRelease();
-    if (StringUtils.hasText(release)) {
-      dependency.setReleaseVersion(release);
-    } else {
-      dependency.setReleaseVersion(metadata.getVersion());
-    }
-  }
-
-  private Metadata getMetadata(Dependency dependency) {
-    String groupId = dependency.getGroupId();
+  private String constructPath(String groupId, String artifactId) {
     String groupPath = StringUtils.replace(groupId, ".", "/");
-    String artifactPath = groupPath + "/" + dependency.getArtifactId() + "/maven-metadata.xml";
-    ResponseEntity<Metadata> metadataResponseEntity = getMetadata(dependency, artifactPath);
-    if (metadataResponseEntity == null) return null;
-    return metadataResponseEntity.getBody();
+    return String.format("%s/%s/maven-metadata.xml", groupPath, artifactId);
   }
 
-  private ResponseEntity<Metadata> getMetadata(Dependency dependency, String artifactPath) {
+  private Dependency getLatestDependency(String path) {
+    List<Dependency> dependencies = new ArrayList<>();
     for (String nexusUrl : nexusUrls) {
-      ResponseEntity<Metadata> metadataFromNexus = getMetadataFromNexus(dependency, artifactPath, nexusUrl);
-      if (metadataFromNexus != null) return metadataFromNexus;
+      ResponseEntity<Metadata> metadataFromNexus = getMetadataFromNexus(nexusUrl, path);
+      if (metadataFromNexus == null) {
+        continue;
+      }
+      Metadata metadata = metadataFromNexus.getBody();
+      if (!StringUtils.hasText(metadata.getGroupId()) || !StringUtils.hasText(metadata.getArtifactId())) {
+        LOGGER.warn("Invalid Nexus response from {} for {}", nexusUrl, path);
+        continue;
+      }
+      Dependency dependency = new Dependency(metadata);
+      dependencies.add(dependency);
     }
-    LOGGER.error("Error for path {}", artifactPath);
-    return null;
+    if (dependencies.isEmpty()) {
+      LOGGER.error("Error for path {}", path);
+      return null;
+    }
+    Collections.sort(dependencies);
+    return dependencies.get(0);
   }
 
-  private ResponseEntity<Metadata> getMetadataFromNexus(Dependency dependency, String artifactPath, String nexusUrl) {
+  private ResponseEntity<Metadata> getMetadataFromNexus(String nexusUrl, String artifactPath) {
     ResponseEntity<Metadata> metadataResponseEntity;
-    String url = nexusUrl + artifactPath;
+    String url = nexusUrl.endsWith("/") ? nexusUrl + artifactPath : nexusUrl + "/" + artifactPath;
     try {
       metadataResponseEntity = restTemplate.getForEntity(url, Metadata.class);
+    } catch (HttpClientErrorException e) {
+//      HttpStatus statusCode = e.getStatusCode();
+//      LOGGER.warn("{} - {}", statusCode, url);
+      return null;
     } catch (RestClientException e) {
+//      LOGGER.warn("Error! Nexus: {}. Message:{}", url, e.getLocalizedMessage());
       return null;
     }
     HttpStatus statusCode = metadataResponseEntity.getStatusCode();
     if (!HttpStatus.OK.equals(statusCode)) {
-      LOGGER.error("Code:{} Can't get metadata for {}.", statusCode, dependency);
+      LOGGER.error("Code:{} Can't get metadata for {}.", statusCode, artifactPath);
       return null;
     }
     return metadataResponseEntity;

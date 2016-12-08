@@ -26,6 +26,7 @@ public class GradleService {
   private static final Logger LOGGER = LoggerFactory.getLogger(GradleService.class);
 
   public Set<Dependency> loadData(String projectPath, boolean includeTransitive) {
+    LOGGER.info("Connecting to project {}", projectPath);
     GradleConnector connector = GradleConnector.newConnector();
     connector.forProjectDirectory(new File(projectPath));
     ProjectConnection connection = null;
@@ -34,6 +35,7 @@ public class GradleService {
     try {
       connection = connector.connect();
       GradleProject project = connection.getModel(GradleProject.class);
+      LOGGER.info("Connected to project {}", projectPath);
       Set<Dependency> dependencies = getDependencies(connection, project, includeTransitive);
       dependencySet.addAll(dependencies);
 
@@ -41,6 +43,7 @@ public class GradleService {
       for (GradleProject child : children) {
         Set<Dependency> d = getDependencies(connection, child, includeTransitive);
         dependencySet.addAll(d);
+//        if (dependencySet.size() > 20) break;
       }
       LOGGER.info("{} total dependencies found for {}", dependencySet.size(), project.getName());
     } finally {
@@ -69,9 +72,7 @@ public class GradleService {
     buildLauncher.setStandardOutput(standardOutput);
     ByteArrayOutputStream errorOutput = new ByteArrayOutputStream(2048);
     buildLauncher.setStandardError(errorOutput);
-    buildLauncher
-        .forTasks(task) // set your task name here
-        .run();
+    buildLauncher.forTasks(task).run();
     String error = errorOutput.toString();
     if (StringUtils.hasText(error)) {
       LOGGER.error("Error occured: {}. Project:{}", error, project.getName());

@@ -1,5 +1,9 @@
 package gg.version.watch.model;
 
+import gg.version.watch.model.nexus.Metadata;
+import gg.version.watch.model.nexus.Versioning;
+import gg.version.watch.util.VersionComparator;
+import org.springframework.data.annotation.Id;
 import org.springframework.util.StringUtils;
 
 import java.util.Objects;
@@ -9,16 +13,55 @@ import java.util.Objects;
  * 06.12.2016
  */
 public class Dependency implements Comparable<Dependency> {
+  private static final String ID_FORMAT = "%s:%s";
+  private static final String EMPTY = "";
+
+  @Id
+  private final String dependencyId;
   private final String groupId;
   private final String artifactId;
-  private final String currentVersion;
+  private String currentVersion;
   private String latestVersion;
   private String releaseVersion;
+
+  private Dependency() {
+    this(null, null);
+  }
+
+  public Dependency(String groupId, String artifactId) {
+    this(groupId, artifactId, null);
+  }
 
   public Dependency(String groupId, String artifactId, String currentVersion) {
     this.groupId = groupId;
     this.artifactId = artifactId;
     this.currentVersion = currentVersion;
+    this.dependencyId = String.format(ID_FORMAT, groupId, artifactId);
+  }
+
+  public Dependency(Metadata metadata) {
+    Versioning versioning = metadata.getVersioning();
+    String latestVersion;
+    String releaseVersion;
+    if (versioning != null) {
+      latestVersion = versioning.getLatest();
+      releaseVersion = versioning.getRelease();
+    } else {
+      String metadataVersion = metadata.getVersion();
+      latestVersion = metadataVersion;
+      releaseVersion = metadataVersion;
+    }
+
+    this.groupId = metadata.getGroupId();
+    this.artifactId = metadata.getArtifactId();
+    this.currentVersion = EMPTY;
+    this.latestVersion = latestVersion;
+    this.releaseVersion = releaseVersion;
+    this.dependencyId = String.format(ID_FORMAT, groupId, artifactId);
+  }
+
+  public String getDependencyId() {
+    return dependencyId;
   }
 
   public String getArtifactId() {
@@ -27,6 +70,10 @@ public class Dependency implements Comparable<Dependency> {
 
   public String getCurrentVersion() {
     return currentVersion;
+  }
+
+  public void setCurrentVersion(String currentVersion) {
+    this.currentVersion = currentVersion;
   }
 
   public String getGroupId() {
@@ -92,6 +139,6 @@ public class Dependency implements Comparable<Dependency> {
     if (artifactIdComparison != 0) {
       return artifactIdComparison;
     }
-    return this.currentVersion.compareTo(o.currentVersion);
+    return new VersionComparator().compare(currentVersion, o.currentVersion);
   }
 }
