@@ -52,7 +52,7 @@ public class DependencyService {
         }
       }
       if (one == null) {
-        LOGGER.warn("Can't find {} in Nexus.", dependencyId);
+        LOGGER.error("Can't find {} in Nexus.", dependencyId);
         continue;
       }
       one.setCurrentVersion(dependency.getCurrentVersion());

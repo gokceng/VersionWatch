@@ -66,6 +66,9 @@ public class GradleService {
         break;
       }
     }
+    if (task == null) {
+      throw new UnsupportedOperationException("Dependencies task doesn't exist!");
+    }
 
     BuildLauncher buildLauncher = connection.newBuild();
     ByteArrayOutputStream standardOutput = new ByteArrayOutputStream(2048);
@@ -99,20 +102,8 @@ public class GradleService {
   }
 
   private String getDependencyLine(boolean includeTransitive, String line) {
-    if (!includeTransitive) {
-      if (!line.startsWith("\\--- ") && !line.startsWith("+--- ")) {
-        return null;
-      }
-      if (line.startsWith(":")) {
-        return null;
-      }
-      if (line.contains("(*)")) {
-        return null;
-      }
-      if (StringUtils.countOccurrencesOf(line, ":") < 2) {
-        return null;
-      }
-      return trimLine(line);
+    if (!includeTransitive && (!line.startsWith("\\--- ") && !line.startsWith("+--- "))) {
+      return null;
     }
     if (line.startsWith(":")) {
       return null;

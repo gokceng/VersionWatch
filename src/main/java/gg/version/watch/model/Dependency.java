@@ -41,14 +41,17 @@ public class Dependency implements Comparable<Dependency> {
 
   public Dependency(Metadata metadata) {
     Versioning versioning = metadata.getVersioning();
-    String latestVersion;
-    String releaseVersion;
+    String latestVersion = null;
+    String releaseVersion = null;
     if (versioning != null) {
       latestVersion = versioning.getLatest();
       releaseVersion = versioning.getRelease();
-    } else {
-      String metadataVersion = metadata.getVersion();
+    }
+    String metadataVersion = metadata.getVersion();
+    if (!StringUtils.hasText(latestVersion)) {
       latestVersion = metadataVersion;
+    }
+    if (!StringUtils.hasText(releaseVersion)) {
       releaseVersion = metadataVersion;
     }
 
